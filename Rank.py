@@ -1,6 +1,7 @@
 from Helpers.data_loader import get_feature_dict, load_gene_expression_data, printProgressBar, load_csv, load_dict_from_cvs
 import json
 from datetime import datetime
+import numpy as np
 
 
 def find_nth(haystack, needle, n):
@@ -42,21 +43,21 @@ def get_ranked_instances(up_ids, down_ids):
     # length = 100
     total_genes = len(tagged_gene_ids)
     start_time = datetime.now()
-    for i in range(0, length):
-        printProgressBar(i, length, prefix='Load experiments progress, length: ' + str(length))
-        col_name = level_5_gctoo.col_metadata_df.index[i]
+
+    up_len = len(up_ids)
+
+    counter = 0
+    for col_name_obj in level_5_gctoo.col_metadata_df.itertuples():
+        col_name = col_name_obj[0]
+        counter = counter + 1
+        printProgressBar(counter, length, prefix='Load experiments progress, length: ' + str(length))
         column = level_5_gctoo.data_df[col_name]
+        column_arr = column.to_numpy()
 
         # score it
-        matches = 0
-        for up_gene in up_ids:
-            if column[up_gene] > 0:
-                matches = matches + 1
-        for down_gene in down_ids:
-            if column[down_gene] < 0:
-                matches = matches + 1
-
-        score = ScoreItem(matches / total_genes, col_name)
+        up_count = np.sum(column_arr[:up_len] > 0)
+        down_count = np.sum(column_arr[up_len:] < 0)
+        score = ScoreItem((up_count + down_count) / total_genes, col_name)
 
         if score < top50min and len(top50) >= 50:
             continue
@@ -66,7 +67,7 @@ def get_ranked_instances(up_ids, down_ids):
         if col_name_key not in experiments_dose_dict:
             continue
         experiment_data = experiments_dose_dict[col_name_key]
-        drug_id = experiment_data[0]
+        drug_name = experiment_data[1]
 
         # parse the time
         start = col_name.rfind("_")
@@ -86,10 +87,10 @@ def get_ranked_instances(up_ids, down_ids):
         if len(top50) >= 50:
             top50.pop(top50min)
 
-        print_str = drug_id + " " + cell_name + " " + str(dose_amt) + dose_unit + " " + exposure_time
+        print_str = drug_name + " " + cell_name + " " + str(dose_amt) + dose_unit + " " + exposure_time
         top50[score] = print_str
         top50min = min(list(top50.keys()))
-        print(datetime.now(), score.item_score, print_str)
+        print(datetime.now(), "{:.3f}".format(score.item_score), print_str)
 
     elapsed = datetime.now() - start_time
 
@@ -97,7 +98,7 @@ def get_ranked_instances(up_ids, down_ids):
 
     sorted_keys = sorted(top50.keys(), key=lambda key: key.item_score, reverse=True)
     for key in sorted_keys:
-        print(key.item_score, top50[key])
+        print("{:.3f}".format(key.item_score), top50[key])
 
 
 def get_gene_id_dict():
