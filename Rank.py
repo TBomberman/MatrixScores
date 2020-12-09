@@ -1,40 +1,37 @@
 from Helpers.data_loader import get_feature_dict, load_gene_expression_data, printProgressBar, load_csv, load_dict_from_cvs
 import json
 from datetime import datetime
-import numpy as np
-from ScoreItem import ScoreItem
 from Helpers.cmap import find_nth, tags2entrez_list
+from Scoring import ScoreItem, get_gene_set_score, get_connectivity_score
 
 
 def get_ranked_instances(up_ids, down_ids):
     top50 = {}
     top50min = ScoreItem(0, "")
-
-    tagged_gene_ids = up_ids + down_ids
     experiments_dose_dict = get_feature_dict('Data/GSE70138_Broad_LINCS_sig_info.txt', '\t', 0)
 
     print("Loading gene expressions from gctx")
+    # tagged_gene_ids = up_ids + down_ids
+    tagged_gene_ids = None
     level_5_gctoo = load_gene_expression_data("Data/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328.gctx",
                                               tagged_gene_ids)
     length = len(level_5_gctoo.col_metadata_df.index)
-    # length = 100
-    total_genes = len(tagged_gene_ids)
+    length = 1000
     start_time = datetime.now()
-
-    up_len = len(up_ids)
 
     counter = 0
     for col_name_obj in level_5_gctoo.col_metadata_df.itertuples():
         col_name = col_name_obj[0]
         counter = counter + 1
+        if counter > length:
+            break
         printProgressBar(counter, length, prefix='Load experiments progress, length: ' + str(length))
         column = level_5_gctoo.data_df[col_name]
-        column_arr = column.to_numpy()
 
         # score it
-        up_count = np.sum(column_arr[:up_len] > 0)
-        down_count = np.sum(column_arr[up_len:] < 0)
-        score = ScoreItem((up_count + down_count) / total_genes, col_name)
+        # score_val = get_gene_set_score(column, up_ids, down_ids)
+        score_val = get_connectivity_score(column, up_ids, down_ids)
+        score = ScoreItem(score_val, col_name)
 
         if score < top50min and len(top50) >= 50:
             continue
