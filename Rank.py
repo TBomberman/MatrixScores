@@ -2,7 +2,7 @@ from Helpers.data_loader import get_feature_dict, load_gene_expression_data, pri
 import json
 from datetime import datetime
 from Helpers.cmap import find_nth, tags2entrez_list
-from Scoring import ScoreItem, get_gene_set_score, get_connectivity_score
+from Scoring import ScoreItem, get_gene_set_score, get_connectivity_score, get_WTCS
 
 
 def get_ranked_instances(up_ids, down_ids):
@@ -30,13 +30,14 @@ def get_ranked_instances(up_ids, down_ids):
 
         # score it
         # score_val = get_gene_set_score(column, up_ids, down_ids)
-        score_val = get_connectivity_score(column, up_ids, down_ids)
+        # score_val = get_connectivity_score(column, up_ids, down_ids)
+        score_val = get_WTCS(column, up_ids, down_ids)
         score = ScoreItem(score_val, col_name)
 
         if score < top50min and len(top50) >= 50:
             continue
 
-        # get drug features
+        # get drug name
         col_name_key = col_name  # [2:-1]
         if col_name_key not in experiments_dose_dict:
             continue

@@ -27,8 +27,7 @@ def get_gene_set_score(column, up_ids, down_ids):
     return (up_count + down_count) / total_len
 
 
-def get_ks(ids, rank_dict):
-    n = 12328  # 12328 number of LM + inferred genes
+def get_ks(ids, rank_dict, n):
     max_a = 0
     max_b = 0
     t = len(ids)
@@ -47,13 +46,61 @@ def get_ks(ids, rank_dict):
 
 
 def get_connectivity_score(column, up_ids, down_ids):
+    n = len(column)
     gene_z = column.to_dict()
     sorted_genes = sorted(gene_z, key=gene_z.get)
     rank_dict_down = {key: rank for rank, key in enumerate(sorted_genes, 1)}
     sorted_genes.reverse()
     rank_dict_up = {key: rank for rank, key in enumerate(sorted_genes, 1)}
-    ksup = get_ks(up_ids, rank_dict_up)
-    ksdown = get_ks(down_ids, rank_dict_down)
+    ksup = get_ks(up_ids, rank_dict_up, n)
+    ksdown = get_ks(down_ids, rank_dict_down, n)
     return 0 if ksup * ksdown >= 0 else ksup - ksdown
+
+
+def get_es(ids, N, gene_z, sorted_gene_list):
+    max_dev = -1
+    NR = 0
+    Phit = 0  # should always be 0-1
+    NH = 0
+
+    NR = 0
+    for i in range(0, N):
+        gene_entrez = sorted_gene_list[i]
+        if gene_entrez in ids:  # hit
+            NR = NR + abs(gene_z[gene_entrez])
+
+    for i in range(0, N):
+        gene_entrez = sorted_gene_list[i]
+
+        if gene_entrez in ids:  # hit
+            NH = NH + 1
+            Phit = 0  # reset to recalc Phit
+
+            for j in range(0, i+1):
+                gene_entrez_inner = sorted_gene_list[j]
+                if gene_entrez_inner in ids:  # hit
+                    zi_inner = gene_z[gene_entrez_inner]
+                    Phit = Phit + abs(zi_inner)/NR
+
+        Pmiss = (i+1)/(N-NH)
+
+        dev = Phit-Pmiss
+        if dev > max_dev:
+            max_dev = dev
+        print(dev)
+
+    return max_dev
+
+
+def get_WTCS(column, up_ids, down_ids):
+    n = len(column)
+    gene_z = column.to_dict()
+    sorted_genes_list_down = sorted(gene_z, key=gene_z.get)
+    sorted_genes_list_up = sorted_genes_list_down[::-1]
+
+    scoreup = get_es(up_ids, n, gene_z, sorted_genes_list_up)
+    scoredown = get_es(down_ids, n, gene_z, sorted_genes_list_down)
+    return 0 if scoreup* scoredown >= 0 else scoreup - scoredown
+
 
 
