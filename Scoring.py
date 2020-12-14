@@ -58,32 +58,25 @@ def get_connectivity_score(column, up_ids, down_ids):
 def get_es(ids, N, gene_z, sorted_gene_list):
     max_dev = 0
     NR = 0
-    Phit = 0  # should always be 0-1
     NH = 0
+    Phit = 0
+    Pmiss = 0
 
-    for i in range(0, N):
-        gene_entrez = sorted_gene_list[i]
-        if gene_entrez in ids:  # hit
-            NR = NR + abs(gene_z[gene_entrez])
+    for entrez in ids:
+        NR = NR + abs(gene_z[entrez])
 
-    for i in range(0, N):
-        gene_entrez = sorted_gene_list[i]
-
-        if gene_entrez in ids:  # hit
+    i = 0
+    for entrez in sorted_gene_list:
+        if entrez in ids:  # hit, try removing from the bag everytime
             NH = NH + 1
-            Phit = 0  # reset to recalc Phit
-
-            for j in range(0, i+1):
-                gene_entrez_inner = sorted_gene_list[j]
-                if gene_entrez_inner in ids:  # hit
-                    zi_inner = gene_z[gene_entrez_inner]
-                    Phit = Phit + abs(zi_inner)/NR
-
-        Pmiss = (i+1)/(N-NH)
-
-        dev = Phit-Pmiss
-        if abs(dev) > abs(max_dev):
-            max_dev = dev
+            Phit = Phit + abs(gene_z[entrez]) / NR
+            dev = Phit - Pmiss
+            if abs(dev) > abs(max_dev):
+                max_dev = dev
+            # print(dev)
+        else:
+            i = i + 1
+        Pmiss = i / (N - NH)
 
     return max_dev
 
@@ -95,7 +88,7 @@ def get_WTCS(column, up_ids, down_ids):
 
     esup = get_es(up_ids, n, gene_z, sorted_genes_list)
     esdown = get_es(down_ids, n, gene_z, sorted_genes_list)
-    print(esup, esdown)
+    # print(esup, esdown)
     return 0 if esup * esdown >= 0 else (esup - esdown)/2
 
 
