@@ -70,13 +70,13 @@ def get_es(ids, N, gene_z, sorted_gene_list):
         if entrez in ids:  # hit, try removing from the bag everytime
             NH = NH + 1
             Phit = Phit + abs(gene_z[entrez]) / NR
+            Pmiss = i / (N - NH)
             dev = Phit - Pmiss
             if abs(dev) > abs(max_dev):
                 max_dev = dev
             # print(dev)
         else:
             i = i + 1
-        Pmiss = i / (N - NH)
 
     return max_dev
 
