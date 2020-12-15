@@ -5,18 +5,11 @@ from Helpers.cmap import find_nth, tags2entrez_list
 from Scoring import ScoreItem, get_gene_set_score, get_connectivity_score, get_WTCS
 
 
-def get_ranked_instances(up_ids, down_ids):
-    top50 = {}
+def get_ranked_instances_single_phase(up_ids, down_ids, level_5_gctoo, experiments_dose_dict, top50, get_dose,
+                                      get_drug):
     top50min = ScoreItem(0, "")
-    experiments_dose_dict = get_feature_dict('Data/GSE70138_Broad_LINCS_sig_info.txt', '\t', 0)
-
-    print("Loading gene expressions from gctx")
-    # tagged_gene_ids = up_ids + down_ids
-    tagged_gene_ids = None
-    level_5_gctoo = load_gene_expression_data("Data/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328.gctx",
-                                              tagged_gene_ids)
     length = len(level_5_gctoo.col_metadata_df.index)
-    length = 1000
+    length = 10
     start_time = datetime.now()
 
     counter = 0
@@ -42,7 +35,7 @@ def get_ranked_instances(up_ids, down_ids):
         if col_name_key not in experiments_dose_dict:
             continue
         experiment_data = experiments_dose_dict[col_name_key]
-        drug_name = experiment_data[1]
+        drug_name = get_drug(experiment_data)
 
         # parse the time
         start = col_name.rfind("_")
@@ -50,8 +43,7 @@ def get_ranked_instances(up_ids, down_ids):
         exposure_time = col_name[start + 1:end]
 
         # parse the dosage unit and value
-        dose_unit = experiment_data[4][-2:]
-        dose_amt = float(experiment_data[4][:-2])
+        dose_unit, dose_amt = get_dose(experiment_data)
 
         # parse the cell name
         start = find_nth(col_name, "_", 1)
@@ -74,6 +66,56 @@ def get_ranked_instances(up_ids, down_ids):
     sorted_keys = sorted(top50.keys(), key=lambda key: key.item_score, reverse=True)
     for key in sorted_keys:
         print("{:.3f}".format(key.item_score), top50[key])
+
+    return top50
+
+
+def get_dose_unit_value_p2(experiment_data):
+    dose_unit = experiment_data[4][-2:]
+    dose_amt = float(experiment_data[4][:-2])
+    return dose_unit, dose_amt
+
+
+def get_dose_unit_value_p1(experiment_data):
+    dose_unit = experiment_data[5]
+    dose_amt = float(experiment_data[4])
+    return dose_unit, dose_amt
+
+
+def get_drug_name_p2(experiment_data):
+    return experiment_data[1]
+
+
+def get_drug_name_p1(experiment_data):
+    return experiment_data[1]
+
+
+def get_ranked_instances(up_ids, down_ids):
+    import psutil, os
+    process = psutil.Process(os.getpid())
+    print(f'{process.memory_info()[0] / float(2 ** 20):,.1f}' + ' MB')
+
+    # tagged_gene_ids = up_ids + down_ids
+    tagged_gene_ids = None
+
+    experiments_dose_dict = get_feature_dict('Data/GSE70138_Broad_LINCS_sig_info.txt', '\t', 0)
+    level_5_gctoo = load_gene_expression_data("Data/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328.gctx",
+                                              tagged_gene_ids)
+    get_dose = get_dose_unit_value_p2
+    get_drug = get_drug_name_p2
+    top50 = get_ranked_instances_single_phase(up_ids, down_ids, level_5_gctoo, experiments_dose_dict, {}, get_dose,
+                                              get_drug)
+
+    # del level_5_gctoo
+    # del experiments_dose_dict
+
+    # get_dose = get_dose_unit_value_p1
+    # get_drug = get_drug_name_p1
+    # experiments_dose_dict = get_feature_dict('Data/GSE92742_Broad_LINCS_sig_info.txt', '\t', 0)
+    # level_5_gctoo = load_gene_expression_data("Data/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx",
+    #                                           tagged_gene_ids)
+    # top50 = get_ranked_instances_single_phase(up_ids, down_ids, level_5_gctoo, experiments_dose_dict, top50, get_dose,
+    #                                           get_drug)
 
 
 prob2entrez = json.load(open('Data/probe2entrez.json'))
